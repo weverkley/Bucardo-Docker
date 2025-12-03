@@ -26,9 +26,12 @@ func NewHTTPServer(logger ports.Logger, service *orchestrator.Service, broadcast
 		broadcaster: broadcaster,
 	}
 
+	// Apply CORS middleware to all routes
+	handler := corsMiddleware(mux)
+
 	mux.HandleFunc("GET /config", h.handleGetConfig)
 	mux.HandleFunc("POST /config", h.handleUpdateConfig)
-	
+
 	mux.HandleFunc("GET /syncs", h.handleListSyncs)
 	mux.HandleFunc("POST /syncs", h.handleCreateSync)
 	mux.HandleFunc("GET /syncs/{name}", h.handleGetSync)
@@ -43,10 +46,29 @@ func NewHTTPServer(logger ports.Logger, service *orchestrator.Service, broadcast
 
 	h.server = &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
-		Handler: mux,
+		Handler: handler, // Use the handler with CORS middleware
 	}
 
 	return h
+}
+
+// corsMiddleware adds CORS headers to responses.
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Allow all origins for development purposes. In production,
+		// you should restrict this to your specific frontend origin(s).
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		// Handle preflight requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (h *HTTPServer) Start() {
