@@ -3,7 +3,7 @@
 This repository provides a powerful, configuration-driven Docker image for Bucardo, an asynchronous multi-master replication system for PostgreSQL.
 The image is designed for modern, declarative, and automated workflows. It uses a single `bucardo.json` file as the source of truth, automatically reconciling the Bucardo state on every startup to match your configuration.
 
-**Docker Hub:** weverkley/bucardo
+**Docker Hub:** [weverkley/bucardo](https://hub.docker.com/r/weverkley/bucardo)
 
 ## Key Features
 
