@@ -10,8 +10,6 @@ dbuser = ${BUCARDO_DB_USER:-postgres}
 dbname = ${BUCARDO_DB_NAME:-bucardo}
 dbpass = ${BUCARDO_DB_PASS:-changeme}
 EOF
-echo "Generated /etc/bucardorc content:"
-cat /etc/bucardorc
 
 # Change ownership to the user that will run the bucardo command
 chown postgres:postgres /etc/bucardorc
