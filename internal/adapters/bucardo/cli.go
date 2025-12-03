@@ -14,6 +14,12 @@ import (
 	"replication-service/internal/core/ports"
 )
 
+// redactPassword replaces the password in a command string with asterisks.
+func redactPassword(cmd string) string {
+	re := regexp.MustCompile(`pass=[^ ]+`)
+	return re.ReplaceAllString(cmd, "pass=*****")
+}
+
 // CLIExecutor implements the BucardoExecutor port using os/exec.
 type CLIExecutor struct {
 	logger      ports.Logger
@@ -35,7 +41,9 @@ func (e *CLIExecutor) runCommand(ctx context.Context, logCmd, name string, arg .
 	if logCmd == "" {
 		logCmd = cmd.String()
 	}
-	e.logger.Info("Running command", "component", "command_runner", "command", logCmd)
+	// Redact password before logging
+	redactedLogCmd := redactPassword(logCmd)
+	e.logger.Info("Running command", "component", "command_runner", "command", redactedLogCmd)
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
