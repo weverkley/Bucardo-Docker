@@ -1,0 +1,43 @@
+{
+  "databases":[
+    {
+      "id": 0,
+      "dbname": "example_db",
+      "host": "host.example.com",
+      "user": "example_user",
+      "pass": "secret",
+      "port": 5432
+    },{
+      "id": 1,
+      "dbname": "example_db",
+      "host": "host.example.com",
+      "user": "example_user",
+      "pass": "secret",
+      "port": 5432
+    },{
+      "id": 2,
+      "dbname": "example_db",
+      "host": "host.example.com",
+      "user": "example_user",
+      "pass": "secret",
+      "port": 5432
+    }],
+  "syncs" : [
+    {
+      "sources": [0],
+      "targets": [1,2],
+      "tables": "client",
+      "onetimecopy": 1
+    },{
+      "sources": [1,2],
+      "targets": [0],
+      "tables": "product,order",
+      "onetimecopy": 0
+    },{
+      "sources": [0],
+      "targets": [1],
+      "herd": "all_database_tables",
+      "onetimecopy": 1
+    }
+  ]
+}

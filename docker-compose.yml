@@ -1,0 +1,43 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./bucardo.json:/media/bucardo/bucardo.json
+    ports:
+      - "8080:8080"
+    environment:
+      - BUCARDO_DB_HOST=192.168.0.112
+      - BUCARDO_DB_PORT=5436
+      - BUCARDO_DB_USER=postgres
+      - BUCARDO_DB_NAME=bucardo
+      - BUCARDO_DB_PASS=changeme
+    restart: on-failure
+
+  postgres:
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=changeme
+      - POSTGRES_DB=bucardo
+    volumes:
+      - bucardo-data:/var/lib/postgresql/data
+    ports:
+      # Exposing the port is useful for debugging with a local client
+      - "5436:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+volumes:
+  bucardo-data:

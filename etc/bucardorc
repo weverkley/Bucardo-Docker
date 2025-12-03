@@ -1,0 +1,4 @@
+dbhost = postgres
+dbport = 5432
+dbuser = postgres
+dbname = bucardo

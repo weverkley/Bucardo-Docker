@@ -1,0 +1,3 @@
+FROM postgres:14
+
+RUN apt-get update && apt-get install -y postgresql-plperl-14 libdbi-perl libdbd-pg-perl && rm -rf /var/lib/apt/lists/*
