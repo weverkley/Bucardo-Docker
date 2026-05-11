@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"replication-service/internal/core/domain"
 	"replication-service/internal/core/ports"
 )
 
@@ -98,7 +99,7 @@ func (e *CLIExecutor) EnsureBucardoUserPassword(ctx context.Context, dbhost, dbu
 	cmd := exec.CommandContext(ctx, "su", "-", e.bucardoUser, "-c", cmdStr)
 
 	e.logger.Info("Ensuring 'bucardo' user password is correct", "component", "auth_fixer", "host", dbhost, "user", bucardoUser)
-	
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// If the user doesn't exist, ALTER USER will fail. We can ignore that because InstallBucardo will create it.
@@ -188,6 +189,35 @@ func (e *CLIExecutor) DatabaseExists(ctx context.Context, dbName string) (bool, 
 		}
 	}
 	return false, nil
+}
+
+func (e *CLIExecutor) ListCustomNames(ctx context.Context) ([]domain.CustomName, error) {
+	re := regexp.MustCompile(`^(\d+)\.\s+Table:\s+(\S+)\s+=>\s+(\S+)\s+Database:\s+(\S+)`)
+	output, err := e.runBucardoCommandWithOutput(ctx, "list", "customnames")
+	outputStr := string(output)
+
+	if err != nil {
+		if strings.Contains(outputStr, "No customnames") {
+			return []domain.CustomName{}, nil
+		}
+		return nil, fmt.Errorf("failed to execute 'bucardo list customnames': %w. Output: %s", err, outputStr)
+	}
+
+	matches := re.FindAllStringSubmatch(outputStr, -1)
+	if matches == nil {
+		return []domain.CustomName{}, nil
+	}
+
+	var customNames []domain.CustomName
+	for _, match := range matches {
+		customNames = append(customNames, domain.CustomName{
+			Id:      match[1],
+			OldName: match[2],
+			NewName: match[3],
+			DBName:  match[4],
+		})
+	}
+	return customNames, nil
 }
 
 // ExecuteBucardoCommand is a general-purpose method to run any bucardo command.
@@ -282,21 +312,21 @@ func (e *CLIExecutor) RemoveSyncAndRelgroup(ctx context.Context, syncName, relgr
 	cliErr := e.runBucardoCommand(ctx, "del", "sync", syncName, "--force")
 	if cliErr != nil {
 		e.logger.Warn("Standard 'del sync' failed, attempting direct SQL cleanup as fallback", "error", cliErr)
-		
+
 		// 2. Fallback: Direct SQL deletion
 		// We delete from bucardo.sync (which cascades to dependent objects usually, but we be specific)
 		// Note: The table for relgroups is 'bucardo.herd'.
 		sql := fmt.Sprintf("DELETE FROM bucardo.sync WHERE name = '%s'; DELETE FROM bucardo.herd WHERE name = '%s';", syncName, relgroupName)
-		
+
 		cmdStr := fmt.Sprintf("PGPASSWORD=%s psql -h %s -p %d -U %s -d bucardo -c \"%s\"", dbPass, dbHost, dbPort, dbUser, sql)
 		cmd := exec.CommandContext(ctx, "su", "-", e.bucardoUser, "-c", cmdStr)
-		
+
 		output, sqlErr := cmd.CombinedOutput()
 		if sqlErr != nil {
 			e.logger.Error("Fallback SQL cleanup also failed", "error", sqlErr, "output", string(output))
-			// Return the original CLI error as it's likely the root cause investigation point, 
+			// Return the original CLI error as it's likely the root cause investigation point,
 			// but logged the SQL error too.
-			return cliErr 
+			return cliErr
 		}
 		e.logger.Info("Fallback SQL cleanup succeeded")
 	}
@@ -304,7 +334,7 @@ func (e *CLIExecutor) RemoveSyncAndRelgroup(ctx context.Context, syncName, relgr
 	// 3. Cleanup Relgroup (Best effort via CLI, might have been deleted by SQL above)
 	// We ignore errors here because if SQL deleted it, this will fail harmlessly.
 	e.runBucardoCommand(ctx, "del", "relgroup", relgroupName)
-	
+
 	return nil
 }
 

@@ -19,15 +19,24 @@ type Database struct {
 
 // Sync defines a Bucardo synchronization task, detailing what to replicate from where to where.
 type Sync struct {
-	Name                  string `json:"name"`
-	Sources               []int  `json:"sources,omitempty"`                  // A list of database IDs to use as sources.
-	Targets               []int  `json:"targets,omitempty"`                  // A list of database IDs to use as targets.
-	Bidirectional         []int  `json:"bidirectional,omitempty"`            // A list of database IDs for bidirectional (dbgroup) replication.
-	Herd                  string `json:"herd,omitempty"`                     // The name of a herd (group) to sync all tables from the first source.
-	Tables                string `json:"tables,omitempty"`                   // A comma-separated list of specific tables to sync.
-	Onetimecopy           int    `json:"onetimecopy"`                        // Controls full-copy behavior (0=off, 1=always, 2=if target empty).
-	StrictChecking        *bool  `json:"strict_checking,omitempty"`          // If false, allows schema differences like column order.
-	ExitOnComplete        *bool  `json:"exit_on_complete,omitempty"`         // If true, the container will exit after this sync completes.
-	ExitOnCompleteTimeout *int   `json:"exit_on_complete_timeout,omitempty"` // Timeout in seconds for run-once syncs.
-	ConflictStrategy      string `json:"conflict_strategy,omitempty"`        // Defines how to resolve data conflicts (e.g., "bucardo_source").
+	Name                  string       `json:"name"`
+	Sources               []int        `json:"sources,omitempty"`                  // A list of database IDs to use as sources.
+	Targets               []int        `json:"targets,omitempty"`                  // A list of database IDs to use as targets.
+	Bidirectional         []int        `json:"bidirectional,omitempty"`            // A list of database IDs for bidirectional (dbgroup) replication.
+	Herd                  string       `json:"herd,omitempty"`                     // The name of a herd (group) to sync all tables from the first source.
+	Tables                string       `json:"tables,omitempty"`                   // A comma-separated list of specific tables to sync.
+	CustomNames           []CustomName `json:"customnames,omitempty"`              // A list of CustomNames for this sync. Each CustomName needs: oldname, newname and DbName
+	Onetimecopy           int          `json:"onetimecopy"`                        // Controls full-copy behavior (0=off, 1=always, 2=if target empty).
+	StrictChecking        *bool        `json:"strict_checking,omitempty"`          // If false, allows schema differences like column order.
+	ExitOnComplete        *bool        `json:"exit_on_complete,omitempty"`         // If true, the container will exit after this sync completes.
+	ExitOnCompleteTimeout *int         `json:"exit_on_complete_timeout,omitempty"` // Timeout in seconds for run-once syncs.
+	ConflictStrategy      string       `json:"conflict_strategy,omitempty"`        // Defines how to resolve data conflicts (e.g., "bucardo_source").
+}
+
+// CustomName defines a Bucardo customname. A way to sync a table with a different name for a database.
+type CustomName struct {
+	Id      string `json:"id:omitempty"` // ID of customname (numeric), used when removing the customname
+	OldName string `json:"oldname"`      // Original table name
+	NewName string `json:"newname"`      // Alias of the table
+	DBName  string `json:"dbname"`       // Database that will use the alias
 }

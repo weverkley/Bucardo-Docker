@@ -32,7 +32,10 @@
       "sources": [1,2],
       "targets": [0],
       "tables": "product,order",
-      "onetimecopy": 0
+      "onetimecopy": 0,
+      "customnames": [
+        { "oldname": "product", "newname": "product2", "dbname": "example_db" }
+      ]
     },{
       "sources": [0],
       "targets": [1],

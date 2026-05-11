@@ -40,6 +40,7 @@ type BucardoExecutor interface {
 	GetSyncRelgroup(ctx context.Context, syncDetailsOutput []byte) (string, error)
 	GetSyncTables(ctx context.Context, relgroupName string) ([]string, error)
 	RemoveSyncAndRelgroup(ctx context.Context, syncName, relgroupName, dbHost, dbUser, dbPass string, dbPort int) error
+	ListCustomNames(ctx context.Context) ([]domain.CustomName, error)
 	ExecuteBucardoCommand(ctx context.Context, args ...string) error
 	StartBucardo(ctx context.Context) error
 	StopBucardo(ctx context.Context) error
