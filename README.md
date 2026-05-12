@@ -117,7 +117,41 @@ The container exposes a REST API on port `8080`, allowing for dynamic configurat
 
    ```bash
    docker-compose up
+   # to pick up image or app changes, pass --build
+   docker compose up --build
+   # DB initialization runs only once. 
+   # to clean database data and re-initialize, drop the data volume
+   docker compose down --volumes
    ```
+
+4. Do database operaions
+
+Once you have setup your databases and bucardo config, do some inserts, deletes and check bucardo status and logs.
+
+```bash
+  # connect to local postgresql to run commands (see password in docker-compose.yml)
+  # See bellow for SQL commands
+  psql -h localhost -U postgres -d bucardo -p 5436 -d example_db
+
+  # exec into app container ro run bucardo commands
+  docker exec -ti bucardo-docker-app-1 bash
+  # (inside container)
+  watch bucardo status
+
+PID of Bucardo MCP: 99
+ Name    State    Last good    Time    Last I/D    Last bad    Time
+=======+========+============+=======+===========+===========+=======
+ sync1 | Good   | 19:41:51   | 3s    | 0/3       | none      |
+```
+
+Connected to database via `psql`:
+
+```sql
+  -- change database
+  \c example_db
+  -- insert some data into client table and check `bucardo status` inside app container
+  insert into client(name) values ('c1'),('c2'),('c3');
+```
 
 ## Configuration Reference (`bucardo.json`)
 
