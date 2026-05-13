@@ -203,6 +203,11 @@ func (s *Service) ReloadAndRestart(ctx context.Context) error {
 		return err
 	}
 
+	if errs := s.addCustomNames(ctx, config); errs != nil {
+		s.logger.Error("Failed to add customnames", "error", err)
+		return fmt.Errorf("Failed to add customnames: %v", errs)
+	}
+
 	if err := s.bucardo.StartBucardo(ctx); err != nil {
 		s.logger.Error("Failed to start bucardo", "error", err)
 		return err
@@ -287,6 +292,25 @@ func (s *Service) DeleteSync(ctx context.Context, name string) error {
 	}
 	config.Syncs = newSyncs
 	return s.UpdateConfig(ctx, config)
+}
+
+func (s *Service) addCustomNames(ctx context.Context, config *domain.BucardoConfig) []error {
+	var errors []error
+	// Add bucardo customanmes for tables
+	s.logger.Info("Preparing to add table customnames.", "customnames", config.CustomNames)
+	if len(config.CustomNames) != 0 {
+		for _, cn := range config.CustomNames {
+			s.logger.Info("Preparing to add table customname.", "customname", cn)
+			args := []string{"add", "customname", cn.OldName, cn.NewName}
+			if cn.DBName != "" {
+				args = append(args, fmt.Sprintf("db=%s", cn.DBName))
+			}
+			if err := s.bucardo.ExecuteBucardoCommand(ctx, args...); err != nil {
+				errors = append(errors, fmt.Errorf("failed to add customname %s: %w", cn, err))
+			}
+		}
+	}
+	return errors
 }
 
 // validateConfig performs a pre-check of the configuration to catch common errors.

@@ -211,7 +211,7 @@ func (e *CLIExecutor) ListCustomNames(ctx context.Context) ([]domain.CustomName,
 	var customNames []domain.CustomName
 	for _, match := range matches {
 		customNames = append(customNames, domain.CustomName{
-			Id:      match[1],
+			// Id:      match[1],
 			OldName: match[2],
 			NewName: match[3],
 			DBName:  match[4],
