@@ -11,15 +11,15 @@ variable "TAG" {
 }
 
 variable "PG_VERSION" {
-    default = "14"
+    default = "16"
 }
 
 variable "GOLANG_VERSION" {
-    default = "1.22-alpine"
+    default = "1.26-alpine"
 }
 
 variable "UBUNTU_VERSION" {
-    default = "22.04"
+    default = "24.04"
 }
 
 variable "BUCARDO_VERSION" {

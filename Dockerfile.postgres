@@ -1,5 +1,5 @@
-FROM postgres:15
+FROM postgres:16
 
 RUN apt-get update && \
-    apt-get install -y postgresql-plperl-15 libdbi-perl libdbd-pg-perl && \
+    apt-get install -y postgresql-plperl-16 libdbi-perl libdbd-pg-perl && \
     rm -rf /var/lib/apt/lists/*

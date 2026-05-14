@@ -1,5 +1,5 @@
-ARG GOLANG_VERSION=1.22-alpine
-ARG UBUNTU_VERSION=22.04
+ARG GOLANG_VERSION=1.26-alpine
+ARG UBUNTU_VERSION=24.04
 FROM golang:${GOLANG_VERSION} AS builder
 WORKDIR /app
 COPY . .
@@ -10,7 +10,7 @@ RUN go build -o /entrypoint ./cmd/app
 FROM ubuntu:${UBUNTU_VERSION}
 
 ARG BUCARDO_VERSION=5.6.0
-ARG PG_VERSION=14
+ARG PG_VERSION=16
 
 LABEL \
     maintainer="Wever Kley <wever-kley@live.com>" \
