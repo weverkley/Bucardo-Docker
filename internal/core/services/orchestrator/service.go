@@ -185,16 +185,16 @@ func (s *Service) ReloadAndRestart(ctx context.Context) error {
 		s.logger.Warn("Failed to set log_level", "error", err)
 	}
 
+	if errs := s.removeCustomNames(ctx); errs != nil {
+		s.logger.Error("Failed to remove customnames", "error", err)
+	}
+
 	if err := s.removeOrphanedDbs(ctx, config); err != nil {
 		s.logger.Error("Failed to remove orphaned databases", "error", err)
 	}
 
 	if err := s.removeOrphanedSyncs(ctx, config, dbHost, dbUser, dbPass, dbPort); err != nil {
 		s.logger.Error("Failed to remove orphaned syncs", "error", err)
-	}
-
-	if errs := s.removeCustomNames(ctx); errs != nil {
-		s.logger.Error("Failed to remove customnames", "error", err)
 	}
 
 	if err := s.addDatabasesToBucardo(ctx, config); err != nil {
