@@ -32,6 +32,7 @@ type BucardoExecutor interface {
 	InstallBucardo(ctx context.Context, dbname, host, user, pass string) error
 	EnsureBucardoUserPassword(ctx context.Context, dbhost, dbuser, dbpass, bucardoUser, bucardoPass string, dbport int) error
 	SetLogLevel(ctx context.Context, level string) error
+	ListAll(ctx context.Context) (string, error)
 	ListDatabases(ctx context.Context) ([]string, error)
 	DatabaseExists(ctx context.Context, dbName string) (bool, error)
 	RemoveDatabase(ctx context.Context, dbName string) error
@@ -39,7 +40,9 @@ type BucardoExecutor interface {
 	SyncExists(ctx context.Context, syncName string) (bool, []byte, error)
 	GetSyncRelgroup(ctx context.Context, syncDetailsOutput []byte) (string, error)
 	GetSyncTables(ctx context.Context, relgroupName string) ([]string, error)
+	AddTables(ctx context.Context, tableNames []string, databaseName string) []error
 	RemoveSyncAndRelgroup(ctx context.Context, syncName, relgroupName, dbHost, dbUser, dbPass string, dbPort int) error
+	RemoveCustomNames(ctx context.Context) error
 	ExecuteBucardoCommand(ctx context.Context, args ...string) error
 	StartBucardo(ctx context.Context) error
 	StopBucardo(ctx context.Context) error

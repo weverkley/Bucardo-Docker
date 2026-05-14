@@ -11,8 +11,8 @@ The image is designed for modern, declarative, and automated workflows. It uses 
 - **Automated Reconciliation**: On startup, the container ensures Bucardo's state matches your config, removing any orphaned databases or syncs.
 - **REST API Management**: Built-in HTTP server (port 8080) to programmatically manage syncs and control the service lifecycle without restarting the container manually.
 - **Multiple Execution Modes**:
-   - **Idempotent Updates**: Safely restart the container without losing data. Syncs are only re-created if their table list changes.
-   - **Long-Running**: The default mode for continuous replication.
+  - **Idempotent Updates**: Safely restart the container without losing data. Syncs are only re-created if their table list changes.
+  - **Long-Running**: The default mode for continuous replication.
   - **Run-Once**: The container performs a single sync and then exits, ideal for batch jobs.
 - **Flexible Sync Types**:
   - **Source-to-Target**: Classic one-way replication.
@@ -45,10 +45,11 @@ This ensures that your `bucardo.json` file remains the single source of truth, a
 The container exposes a REST API on port `8080`, allowing for dynamic configuration and integration with external UIs or scripts.
 
 **Capabilities:**
-*   **Sync Management:** Create, Read, Update, and Delete sync configurations on the fly.
-*   **Lifecycle Control:** Trigger a hot reload (`/restart`) to apply configuration changes immediately without killing the container.
-*   **Process Control:** Start or stop the background Bucardo daemon.
-*   **Real-time Logging:** Stream logs via WebSocket (`ws://<host>:8080/logs`).
+
+- **Sync Management:** Create, Read, Update, and Delete sync configurations on the fly.
+- **Lifecycle Control:** Trigger a hot reload (`/restart`) to apply configuration changes immediately without killing the container.
+- **Process Control:** Start or stop the background Bucardo daemon.
+- **Real-time Logging:** Stream logs via WebSocket (`ws://<host>:8080/logs`).
 
 **[Read the full API Integration Guide](docs/API_INTEGRATION.md)** for endpoints and usage examples.
 
@@ -117,17 +118,52 @@ The container exposes a REST API on port `8080`, allowing for dynamic configurat
 
    ```bash
    docker-compose up
+   # to pick up image or app changes, pass --build
+   docker compose up --build
+   # DB initialization runs only once.
+   # to clean database data and re-initialize, drop the data volume
+   docker compose down --volumes
    ```
+
+4. Do database operaions
+
+Once you have setup your databases and bucardo config, do some inserts, deletes and check bucardo status and logs.
+
+```bash
+  # connect to local postgresql to run commands (see password in docker-compose.yml)
+  # See bellow for SQL commands
+  psql -h localhost -U postgres -d bucardo -p 5436 -d example_db
+
+  # exec into app container ro run bucardo commands
+  docker exec -ti bucardo-docker-app-1 bash
+  # (inside container)
+  watch bucardo status
+
+PID of Bucardo MCP: 99
+ Name    State    Last good    Time    Last I/D    Last bad    Time
+=======+========+============+=======+===========+===========+=======
+ sync1 | Good   | 19:41:51   | 3s    | 0/3       | none      |
+```
+
+Connected to database via `psql`:
+
+```sql
+  -- change database
+  \c example_db
+  -- insert some data into client table and check `bucardo status` inside app container
+  insert into client(name) values ('c1'),('c2'),('c3');
+```
 
 ## Configuration Reference (`bucardo.json`)
 
 ### Top-Level Properties
 
-| Property    | Type     | Description                                                                                             |
-| ----------- | -------- | ------------------------------------------------------------------------------------------------------- |
-| `databases` | `array`  | **Required.** An array of Database Objects.                                                             |
-| `syncs`     | `array`  | **Required.** An array of Sync Objects.                                                                 |
-| `log_level` | `string` | _Optional._ Sets Bucardo's global log level. Recommended: `"VERBOSE"` or `"DEBUG"` for troubleshooting. |
+| Property      | Type     | Description                                                                                             |
+| ------------- | -------- | ------------------------------------------------------------------------------------------------------- |
+| `databases`   | `array`  | **Required.** An array of Database Objects.                                                             |
+| `syncs`       | `array`  | **Required.** An array of Sync Objects.                                                                 |
+| `customnames` | `array`  | _Optional._ An array of Custom name Objects.                                                            |
+| `log_level`   | `string` | _Optional._ Sets Bucardo's global log level. Recommended: `"VERBOSE"` or `"DEBUG"` for troubleshooting. |
 
 ### Database Object
 
@@ -156,6 +192,15 @@ The container exposes a REST API on port `8080`, allowing for dynamic configurat
 | `exit_on_complete`         | `bool`   | _Optional._ If `true`, the container performs a single sync and then exits. Ideal for batch jobs. Requires `log_level` of `VERBOSE` or `DEBUG`. -      |
 | `exit_on_complete_timeout` | `int`    | _Optional._ Timeout in seconds for a run-once sync. If the sync doesn't complete in time, the container exits with an error. -                         |
 
+### Customname Object
+
+| Property   | Type     | Description                                                                                                        |
+| ---------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
+| `oldname`  | `string` | **Required.** The name of the table from which to sync data.                                                       |
+| `newname`  | `string` | **Required.** The new name (alias) of the table to which sync data.                                                |
+| `DBId`     | `int`    | _Optional._ Limit table rename to this database id - database id within the config. Used to reference it in syncs. |
+| `SyncName` | `string` | _Optional._ Limit the table rename to the databases in the sync connection.                                        |
+
 ## Password Management
 
 For better security, you can load database passwords from environment variables instead of
@@ -175,6 +220,25 @@ services:
     environment:
       - BUCARDO_DB1=your_db1_password
       - BUCARDO_DB2=your_db2_password
+```
+
+## Build container image
+
+Docker images are built and publihsed via github actions.
+
+The project contains a docker bake file for building and publishing container images.
+
+You can use this file to publish you own image, to your own private registry.
+You can use the `REPO` environment varialbe to pass your own registry.
+
+You can also pass other build argument variables like ubuntu base image version, postgresql version, etc. See bake file for full list.
+
+```bash
+  # Build local image - specify --file to avoid loading docker-compose.yml
+  docker bake --file=docker-bake.hcl  --progress=plain --load
+  # Use ubuntu 24.04 as a base and match with postgresql 16
+  UBUNTU_VERSION=24.04 PG_VERSION=16 docker bake --file=docker-bake.hcl  --progress=plain --load
+
 ```
 
 ## Copyright and License

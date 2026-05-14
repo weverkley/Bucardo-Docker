@@ -98,7 +98,7 @@ func (e *CLIExecutor) EnsureBucardoUserPassword(ctx context.Context, dbhost, dbu
 	cmd := exec.CommandContext(ctx, "su", "-", e.bucardoUser, "-c", cmdStr)
 
 	e.logger.Info("Ensuring 'bucardo' user password is correct", "component", "auth_fixer", "host", dbhost, "user", bucardoUser)
-	
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// If the user doesn't exist, ALTER USER will fail. We can ignore that because InstallBucardo will create it.
@@ -150,6 +150,12 @@ func (e *CLIExecutor) SetLogLevel(ctx context.Context, level string) error {
 	return e.runBucardoCommand(ctx, "set", fmt.Sprintf("log_level=%s", level))
 }
 
+func (e *CLIExecutor) ListAll(ctx context.Context) (string, error) {
+	output, err := e.runBucardoCommandWithOutput(ctx, "list", "all")
+	outputStr := string(output)
+	return outputStr, err
+}
+
 // ListDatabases returns a slice of all database names currently configured in Bucardo.
 func (e *CLIExecutor) ListDatabases(ctx context.Context) ([]string, error) {
 	re := regexp.MustCompile(`Database: (\S+)`)
@@ -188,6 +194,56 @@ func (e *CLIExecutor) DatabaseExists(ctx context.Context, dbName string) (bool, 
 		}
 	}
 	return false, nil
+}
+
+func (e *CLIExecutor) removeCustomName(ctx context.Context, customNameId string) error {
+	e.logger.Info("Remove customname", "customNameId", customNameId)
+	output, err := e.runBucardoCommandWithOutput(ctx, "remove", "customname", customNameId)
+	outputStr := string(output)
+
+	if err != nil {
+		if strings.Contains(outputStr, "Removed customcode") {
+			return nil
+		}
+		if strings.Contains(outputStr,
+			fmt.Sprintf("Customname number %s does not exist", customNameId)) {
+			// we don't care if customanme does not exist
+			return nil
+		}
+	} else {
+		return fmt.Errorf("Failed to remove customname %w", err)
+	}
+	return nil
+}
+
+func (e *CLIExecutor) RemoveCustomNames(ctx context.Context) error {
+	re := regexp.MustCompile(`^(\d+)\.\s+Table:\s+(\S+)\s+=>\s+(\S+)\s+Database:\s+(\S+)`)
+	output, err := e.runBucardoCommandWithOutput(ctx, "list", "customnames")
+	outputStr := string(output)
+
+	if err != nil {
+		if strings.Contains(outputStr, "No customnames") {
+			return nil
+		}
+		return fmt.Errorf("failed to execute 'bucardo list customnames': %w. Output: %s", err, outputStr)
+	}
+
+	matches := re.FindAllStringSubmatch(outputStr, -1)
+	if matches == nil {
+		return nil
+	}
+	var errors []error
+	for _, match := range matches {
+		id := match[1]
+		err = e.removeCustomName(ctx, id)
+		if err != nil {
+			errors = append(errors, err)
+		}
+	}
+	if len(errors) > 0 {
+		return fmt.Errorf("failed to remove customnames: %w.", err)
+	}
+	return nil
 }
 
 // ExecuteBucardoCommand is a general-purpose method to run any bucardo command.
@@ -276,27 +332,50 @@ func (e *CLIExecutor) GetSyncTables(ctx context.Context, relgroupName string) ([
 	return tables, nil
 }
 
+// AddTables makes bucardo track a list of tables belonging to a database
+func (e *CLIExecutor) AddTables(ctx context.Context, tableNames []string, databaseName string) []error {
+	var errors []error
+
+	for _, tableName := range tableNames {
+		e.logger.Info("Add table", tableName, databaseName)
+		output, err := e.runBucardoCommandWithOutput(ctx, "add", "table", tableName, "db=", databaseName)
+		if err != nil {
+			errors = append(errors, fmt.Errorf("failed to add table %s to db %s: %w. Output: %s", tableName, databaseName, err, string(output)))
+			continue
+		}
+
+		// Did not find matches for the following terms:
+		// table_name
+		if strings.Contains(string(output), "Did not find matches for") {
+			errors = append(errors, fmt.Errorf("Failed to add table %s to db %s", tableName, databaseName))
+		}
+		// Added the following tables or sequences:
+		// public.table_name
+	}
+	return errors
+}
+
 // RemoveSyncAndRelgroup removes a sync and its associated relgroup.
 func (e *CLIExecutor) RemoveSyncAndRelgroup(ctx context.Context, syncName, relgroupName, dbHost, dbUser, dbPass string, dbPort int) error {
 	// 1. Try standard CLI removal
 	cliErr := e.runBucardoCommand(ctx, "del", "sync", syncName, "--force")
 	if cliErr != nil {
 		e.logger.Warn("Standard 'del sync' failed, attempting direct SQL cleanup as fallback", "error", cliErr)
-		
+
 		// 2. Fallback: Direct SQL deletion
 		// We delete from bucardo.sync (which cascades to dependent objects usually, but we be specific)
 		// Note: The table for relgroups is 'bucardo.herd'.
 		sql := fmt.Sprintf("DELETE FROM bucardo.sync WHERE name = '%s'; DELETE FROM bucardo.herd WHERE name = '%s';", syncName, relgroupName)
-		
+
 		cmdStr := fmt.Sprintf("PGPASSWORD=%s psql -h %s -p %d -U %s -d bucardo -c \"%s\"", dbPass, dbHost, dbPort, dbUser, sql)
 		cmd := exec.CommandContext(ctx, "su", "-", e.bucardoUser, "-c", cmdStr)
-		
+
 		output, sqlErr := cmd.CombinedOutput()
 		if sqlErr != nil {
 			e.logger.Error("Fallback SQL cleanup also failed", "error", sqlErr, "output", string(output))
-			// Return the original CLI error as it's likely the root cause investigation point, 
+			// Return the original CLI error as it's likely the root cause investigation point,
 			// but logged the SQL error too.
-			return cliErr 
+			return cliErr
 		}
 		e.logger.Info("Fallback SQL cleanup succeeded")
 	}
@@ -304,7 +383,7 @@ func (e *CLIExecutor) RemoveSyncAndRelgroup(ctx context.Context, syncName, relgr
 	// 3. Cleanup Relgroup (Best effort via CLI, might have been deleted by SQL above)
 	// We ignore errors here because if SQL deleted it, this will fail harmlessly.
 	e.runBucardoCommand(ctx, "del", "relgroup", relgroupName)
-	
+
 	return nil
 }
 

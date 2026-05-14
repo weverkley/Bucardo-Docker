@@ -2,9 +2,10 @@ package domain
 
 // BucardoConfig represents the top-level structure of the bucardo.json file.
 type BucardoConfig struct {
-	Databases []Database `json:"databases"`
-	Syncs     []Sync     `json:"syncs"`
-	LogLevel  string     `json:"log_level,omitempty"`
+	Databases   []Database   `json:"databases"`
+	Syncs       []Sync       `json:"syncs"`
+	CustomNames []CustomName `json:"customnames,omitempty"` // A list of CustomNames. Each CustomName needs: oldname, newname and optional db and sync
+	LogLevel    string       `json:"log_level,omitempty"`
 }
 
 // Database defines a PostgreSQL database connection for Bucardo.
@@ -30,4 +31,14 @@ type Sync struct {
 	ExitOnComplete        *bool  `json:"exit_on_complete,omitempty"`         // If true, the container will exit after this sync completes.
 	ExitOnCompleteTimeout *int   `json:"exit_on_complete_timeout,omitempty"` // Timeout in seconds for run-once syncs.
 	ConflictStrategy      string `json:"conflict_strategy,omitempty"`        // Defines how to resolve data conflicts (e.g., "bucardo_source").
+}
+
+// CustomName defines a Bucardo customname.
+// A way to sync a table with a different name for a database.
+// bucardo add customname oldname newname [db=name] [sync=name]
+type CustomName struct {
+	OldName  string `json:"oldname"`        // Original table name
+	NewName  string `json:"newname"`        // Alias of the table
+	DBId     *int   `json:"db,omitempty"`   // Optional, database that will use the alias
+	SyncName string `json:"sync,omitempty"` // Optional, sync name that will use the alias
 }
