@@ -1,5 +1,5 @@
 {
-  "databases":[
+  "databases": [
     {
       "id": 0,
       "dbname": "example_db",
@@ -7,31 +7,34 @@
       "user": "example_user",
       "pass": "secret",
       "port": 5432
-    },{
+    },
+    {
       "id": 1,
       "dbname": "example_db1",
       "host": "postgres-db",
       "user": "example_user",
       "pass": "secret",
       "port": 5432
-    },{
+    },
+    {
       "id": 2,
       "dbname": "example_db2",
       "host": "postgres-db",
       "user": "example_user",
       "pass": "secret",
       "port": 5432
-    }],
-  "syncs" : [
+    }
+  ],
+  "syncs": [
     {
       "name": "sync1",
       "sources": [0],
-      "targets": [1,2],
-      "tables": "client",
-      "customnames": [
-        {"oldname": "client", "newname": "client1", "db": "example_db1"},
-        {"oldname": "product", "newname": "product2", "db": "example_db2"}
-      ]
+      "targets": [1, 2],
+      "tables": "client"
     }
+  ],
+  "customnames": [
+    { "oldname": "client", "newname": "client1", "db": 1 },
+    { "oldname": "product", "newname": "product2", "db": 2 }
   ]
 }

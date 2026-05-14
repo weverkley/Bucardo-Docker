@@ -211,6 +211,25 @@ services:
       - BUCARDO_DB2=your_db2_password
 ```
 
+## Build container image 
+
+Docker images are built and publihsed via github actions.
+
+The project contains a docker bake file for building and publishing container images.
+
+You can use this file to publish you own image, to your own private registry.
+You can use the `REPO` environment varialbe to pass your own registry.
+
+You can also pass other build argument variables like ubuntu base image version, postgresql version, etc. See bake file for full list.
+
+```bash
+  # Build local image - specify --file to avoid loading docker-compose.yml
+  docker bake --file=docker-bake.hcl  --progress=plain --load
+  # Use ubuntu 24.04 as a base and match with postgresql 16
+  UBUNTU_VERSION=24.04 PG_VERSION=16 docker bake --file=docker-bake.hcl  --progress=plain --load
+
+```
+
 ## Copyright and License
 
 This project is copyright 2025 Wever Kley. Licensed under the Apache 2.0 License.

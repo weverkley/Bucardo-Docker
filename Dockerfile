@@ -1,11 +1,13 @@
-FROM golang:1.22-alpine AS builder
+ARG GOLANG_VERSION=1.22-alpine
+ARG UBUNTU_VERSION=22.04
+FROM golang:${GOLANG_VERSION} AS builder
 WORKDIR /app
 COPY . .
 RUN go mod tidy
 RUN go build -o /entrypoint ./cmd/app
 
 
-FROM ubuntu:22.04
+FROM ubuntu:${UBUNTU_VERSION}
 
 ARG BUCARDO_VERSION=5.6.0
 ARG PG_VERSION=14

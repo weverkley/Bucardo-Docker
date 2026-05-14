@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"replication-service/internal/core/domain"
 	"replication-service/internal/core/ports"
 )
 
@@ -191,33 +190,54 @@ func (e *CLIExecutor) DatabaseExists(ctx context.Context, dbName string) (bool, 
 	return false, nil
 }
 
-func (e *CLIExecutor) ListCustomNames(ctx context.Context) ([]domain.CustomName, error) {
+func (e *CLIExecutor) removeCustomName(ctx context.Context, customNameId string) error {
+	e.logger.Info("Remove customname", "customNameId", customNameId)
+	output, err := e.runBucardoCommandWithOutput(ctx, "remove", "customname", customNameId)
+	outputStr := string(output)
+
+	if err != nil {
+		if strings.Contains(outputStr, "Removed customcode") {
+			return nil
+		}
+		if strings.Contains(outputStr,
+			fmt.Sprintf("Customname number %s does not exist", customNameId)) {
+			// we don't care if customanme does not exist
+			return nil
+		}
+	} else {
+		return fmt.Errorf("Failed to remove customname %w", err)
+	}
+	return nil
+}
+
+func (e *CLIExecutor) RemoveCustomNames(ctx context.Context) error {
 	re := regexp.MustCompile(`^(\d+)\.\s+Table:\s+(\S+)\s+=>\s+(\S+)\s+Database:\s+(\S+)`)
 	output, err := e.runBucardoCommandWithOutput(ctx, "list", "customnames")
 	outputStr := string(output)
 
 	if err != nil {
 		if strings.Contains(outputStr, "No customnames") {
-			return []domain.CustomName{}, nil
+			return nil
 		}
-		return nil, fmt.Errorf("failed to execute 'bucardo list customnames': %w. Output: %s", err, outputStr)
+		return fmt.Errorf("failed to execute 'bucardo list customnames': %w. Output: %s", err, outputStr)
 	}
 
 	matches := re.FindAllStringSubmatch(outputStr, -1)
 	if matches == nil {
-		return []domain.CustomName{}, nil
+		return nil
 	}
-
-	var customNames []domain.CustomName
+	var errors []error
 	for _, match := range matches {
-		customNames = append(customNames, domain.CustomName{
-			// Id:      match[1],
-			OldName: match[2],
-			NewName: match[3],
-			DBName:  match[4],
-		})
+		id := match[1]
+		err = e.removeCustomName(ctx, id)
+		if err != nil {
+			errors = append(errors, err)
+		}
 	}
-	return customNames, nil
+	if len(errors) > 0 {
+		return fmt.Errorf("failed to remove customnames: %w.", err)
+	}
+	return nil
 }
 
 // ExecuteBucardoCommand is a general-purpose method to run any bucardo command.

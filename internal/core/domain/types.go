@@ -39,6 +39,6 @@ type Sync struct {
 type CustomName struct {
 	OldName  string `json:"oldname"`        // Original table name
 	NewName  string `json:"newname"`        // Alias of the table
-	DBName   string `json:"db,omitempty"`   // Optional, database that will use the alias
+	DBId     *int   `json:"db,omitempty"`   // Optional, database that will use the alias
 	SyncName string `json:"sync,omitempty"` // Optional, sync name that will use the alias
 }

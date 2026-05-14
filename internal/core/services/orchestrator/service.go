@@ -193,6 +193,10 @@ func (s *Service) ReloadAndRestart(ctx context.Context) error {
 		s.logger.Error("Failed to remove orphaned syncs", "error", err)
 	}
 
+	if errs := s.removeCustomNames(ctx); errs != nil {
+		s.logger.Error("Failed to remove customnames", "error", err)
+	}
+
 	if err := s.addDatabasesToBucardo(ctx, config); err != nil {
 		s.logger.Error("Failed to reconcile databases", "error", err)
 		return err
@@ -294,6 +298,12 @@ func (s *Service) DeleteSync(ctx context.Context, name string) error {
 	return s.UpdateConfig(ctx, config)
 }
 
+func (s *Service) removeCustomNames(ctx context.Context) error {
+	// Add bucardo customanmes for tables
+	s.logger.Info("Preparing to remove table customnames.")
+	return s.bucardo.RemoveCustomNames(ctx)
+}
+
 func (s *Service) addCustomNames(ctx context.Context, config *domain.BucardoConfig) []error {
 	var errors []error
 	// Add bucardo customanmes for tables
@@ -302,8 +312,8 @@ func (s *Service) addCustomNames(ctx context.Context, config *domain.BucardoConf
 		for _, cn := range config.CustomNames {
 			s.logger.Info("Preparing to add table customname.", "customname", cn)
 			args := []string{"add", "customname", cn.OldName, cn.NewName}
-			if cn.DBName != "" {
-				args = append(args, fmt.Sprintf("db=%s", cn.DBName))
+			if cn.DBId != nil {
+				args = append(args, fmt.Sprintf("db=db%d", *cn.DBId))
 			}
 			if err := s.bucardo.ExecuteBucardoCommand(ctx, args...); err != nil {
 				errors = append(errors, fmt.Errorf("failed to add customname %s: %w", cn, err))
