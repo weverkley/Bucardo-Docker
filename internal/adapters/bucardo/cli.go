@@ -150,6 +150,12 @@ func (e *CLIExecutor) SetLogLevel(ctx context.Context, level string) error {
 	return e.runBucardoCommand(ctx, "set", fmt.Sprintf("log_level=%s", level))
 }
 
+func (e *CLIExecutor) ListAll(ctx context.Context) (string, error) {
+	output, err := e.runBucardoCommandWithOutput(ctx, "list", "all")
+	outputStr := string(output)
+	return outputStr, err
+}
+
 // ListDatabases returns a slice of all database names currently configured in Bucardo.
 func (e *CLIExecutor) ListDatabases(ctx context.Context) ([]string, error) {
 	re := regexp.MustCompile(`Database: (\S+)`)
@@ -324,6 +330,29 @@ func (e *CLIExecutor) GetSyncTables(ctx context.Context, relgroupName string) ([
 	}
 	sort.Strings(tables)
 	return tables, nil
+}
+
+// AddTables makes bucardo track a list of tables belonging to a database
+func (e *CLIExecutor) AddTables(ctx context.Context, tableNames []string, databaseName string) []error {
+	var errors []error
+
+	for _, tableName := range tableNames {
+		e.logger.Info("Add table", tableName, databaseName)
+		output, err := e.runBucardoCommandWithOutput(ctx, "add", "table", tableName, "db=", databaseName)
+		if err != nil {
+			errors = append(errors, fmt.Errorf("failed to add table %s to db %s: %w. Output: %s", tableName, databaseName, err, string(output)))
+			continue
+		}
+
+		// Did not find matches for the following terms:
+		// table_name
+		if strings.Contains(string(output), "Did not find matches for") {
+			errors = append(errors, fmt.Errorf("Failed to add table %s to db %s", tableName, databaseName))
+		}
+		// Added the following tables or sequences:
+		// public.table_name
+	}
+	return errors
 }
 
 // RemoveSyncAndRelgroup removes a sync and its associated relgroup.

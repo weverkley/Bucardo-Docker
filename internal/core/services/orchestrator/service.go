@@ -185,6 +185,14 @@ func (s *Service) ReloadAndRestart(ctx context.Context) error {
 		s.logger.Warn("Failed to set log_level", "error", err)
 	}
 
+	if outStr, err := s.bucardo.ListAll(ctx); err != nil {
+		s.logger.Warn("Error during `bucardo list all`", err)
+	} else {
+		for _, l := range strings.Split(outStr, "\n") {
+			s.logger.Info(l)
+		}
+	}
+
 	if errs := s.removeCustomNames(ctx); errs != nil {
 		s.logger.Error("Failed to remove customnames", "error", err)
 	}
@@ -202,14 +210,27 @@ func (s *Service) ReloadAndRestart(ctx context.Context) error {
 		return err
 	}
 
-	if err := s.addSyncsToBucardo(ctx, config, dbHost, dbUser, dbPass, dbPort); err != nil {
-		s.logger.Error("Failed to reconcile syncs", "error", err)
-		return err
+	if errs := s.addTables(ctx, config); errs != nil {
+		s.logger.Error("Failed to add tables", "error", err)
+		return fmt.Errorf("Failed to add tables: %v", errs)
 	}
 
 	if errs := s.addCustomNames(ctx, config); errs != nil {
 		s.logger.Error("Failed to add customnames", "error", err)
 		return fmt.Errorf("Failed to add customnames: %v", errs)
+	}
+
+	if err := s.addSyncsToBucardo(ctx, config, dbHost, dbUser, dbPass, dbPort); err != nil {
+		s.logger.Error("Failed to reconcile syncs", "error", err)
+		return err
+	}
+
+	if outStr, err := s.bucardo.ListAll(ctx); err != nil {
+		s.logger.Warn("Error during `bucardo list all`", err)
+	} else {
+		for _, l := range strings.Split(outStr, "\n") {
+			s.logger.Info(l)
+		}
 	}
 
 	if err := s.bucardo.StartBucardo(ctx); err != nil {
@@ -320,6 +341,30 @@ func (s *Service) addCustomNames(ctx context.Context, config *domain.BucardoConf
 			}
 		}
 	}
+	return errors
+}
+
+func databaseIdsToNames(dbIds []int) []string {
+	var dbNames []string
+	for _, id := range dbIds {
+		dbNames = append(dbNames, fmt.Sprintf("db%d", id))
+	}
+	return dbNames
+}
+
+func (s *Service) addTables(ctx context.Context, config *domain.BucardoConfig) []error {
+	var errors []error
+	// Add bucardo customanmes for tables
+	s.logger.Info("Preparing to add tables. Will ignore errors.")
+	for _, sync := range config.Syncs {
+		configTablesRaw := strings.Split(sync.Tables, ",")
+		sourceDbs := databaseIdsToNames(sync.Sources)
+		for _, db := range sourceDbs {
+			s.logger.Info("Preparing to add tables", "tables", configTablesRaw, "database", db)
+			s.bucardo.AddTables(ctx, configTablesRaw, db)
+		}
+	}
+
 	return errors
 }
 
